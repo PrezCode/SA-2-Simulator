@@ -32,7 +32,7 @@ class Dynamics{
         Aref = PI*pow(radius, 2);
         C_LiftBase = modelData[CLift];
         CGCPavg = modelData[CGCP];
-        diameter = 2*radius;
+        diameter = 2.0*radius;
     }
     void updateObject(double* modelData){
         thrust = modelData[Thrust];
@@ -45,7 +45,7 @@ class Dynamics{
         radius = modelData[Radius];
         volume = PI*pow(radius, 2)*length;
         Aref = PI*pow(radius, 2);
-        diameter = 2*radius;
+        diameter = 2.0*radius;
     }
     void initialConditions(double* state0){
         for(int i = 0; i < 3; i++){
@@ -55,17 +55,7 @@ class Dynamics{
             instance[i+9] = position[i] = state0[i+9];
             instance[i+12] = deltaCMD[i] = state0[i+12];
         }
-        qBar();
-    }
-    void resetConditions(double* state0){
-        for(int i = 0; i < 3; i++){
-            instance[i] = V[i] = state0[i];
-            instance[i+3] = W[i] = state0[i+3];
-            instance[i+6] = eulerAngles[i] = state0[i+6];
-            instance[i+9] = position[i] = state0[i+9];
-            instance[i+12] = deltaCMD[i] = state0[i+12];
-        }
-        qBar();
+        initializeDCM();
     }
     void steeringCommand(double* command){
         deltaCMD[p] = command[p];
@@ -78,12 +68,23 @@ class Dynamics{
         dragForce = C_Drag*dynamicPressure*Aref;
         liftForce = C_LiftPitch*dynamicPressure*Aref;
         sideForce = C_LiftYaw*dynamicPressure*Aref;
-        Fb[x] = -(Cm_wb[0][0]*dragForce + Cm_wb[0][1]*sideForce + Cm_wb[0][2]*liftForce) + thrust;
-        Fb[y] = -(Cm_wb[1][0]*dragForce + Cm_wb[1][1]*sideForce + Cm_wb[1][2]*liftForce);
-        Fb[z] = -(Cm_wb[2][0]*dragForce + Cm_wb[2][1]*sideForce + Cm_wb[2][2]*liftForce);
-        moments[L] = MomentCoefficient(L, b, c)*dynamicPressure*(2*radius)*Aref;
-        moments[M] = MomentCoefficient(M, b, c)*dynamicPressure*(2*radius)*Aref;
-        moments[N] = MomentCoefficient(N, b, c)*dynamicPressure*(2*radius)*Aref;
+        Fb[x] = -(Cm_wbT[0][0]*dragForce + Cm_wbT[0][1]*sideForce + Cm_wbT[0][2]*liftForce) + thrust;
+        Fb[y] = -(Cm_wbT[1][0]*dragForce + Cm_wbT[1][1]*sideForce + Cm_wbT[1][2]*liftForce);
+        Fb[z] = -(Cm_wbT[2][0]*dragForce + Cm_wbT[2][1]*sideForce + Cm_wbT[2][2]*liftForce);
+        ax_meas = Fb[x]/mass;
+        ay_meas = Fb[y]/mass;
+        az_meas = Fb[z]/mass;
+        moments[L] = MomentCoefficient(L, b, c)*dynamicPressure*(diameter)*Aref;
+        moments[M] = MomentCoefficient(M, b, c)*dynamicPressure*(diameter)*Aref;
+        moments[N] = MomentCoefficient(N, b, c)*dynamicPressure*(diameter)*Aref;
+    }
+    double getMeasuredAccel(Variables xyz){
+        switch(xyz){
+            case x: return ax_meas; break;
+            case y: return ay_meas; break;
+            case z: return az_meas; break;
+        }
+        return 0;
     }
     void derivatives(){
         //Velocity Accelerations
@@ -114,7 +115,6 @@ class Dynamics{
         derivatives();
     }
     void iterate(double dt){
-        computeAirData();
         RK4(dt);
         unpackInstance();
         computeAirData();
@@ -140,7 +140,20 @@ class Dynamics{
         }
     }
     double getQuickData(){
-        return C_Drag;
+        return Fb[z];
+    }
+    double getDiagnostics(int i){
+        switch(i){
+            case 0: return Fb[x]; break;
+            case 1: return Fb[y]; break;
+            case 2: return Fb[z]; break;
+            case 3: return ay_meas; break;
+            case 4: return az_meas; break;
+            case 5: return liftForce; break;
+            case 6: return dragForce; break;
+            case 7: return sideForce; break;
+        }
+        return 0;
     }
     private:
     bool atmosphereON;
@@ -155,18 +168,18 @@ class Dynamics{
             deltaCMD[3] = {0,0,0},   //Actuator command values: Aileron, Elevator, Rudder
             instance[15], instanceDeriv[15],  //Arrays to store simulation state and rates for integration
             Aref, Aref_aileron, Aref_wing, Aref_rudder, aileronMax, elevatorMax, rudderMax, C_DragBase, C_LiftBase, C_Drag, C_LiftPitch, C_LiftYaw, C_Sideforce, diameter{0}, 
-            CnBeta{0}, Cmq{0}, Clp{0}, Cnr{0}, CmAoA{0}, volume, CndelR{0}, CmdelE{0}, CldelA{0}, deg_rad{PI/180}, C_Nalpha{0}, K_D{0},
+            CnBeta{0}, Cmq{0}, Clp{0}, Cnr{0}, CmAoA{0}, volume, CndelR{0}, CmdelE{0}, CldelA{0}, deg_rad{PI/180}, C_Nalpha{0}, K_D{0}, ax_meas{0.0}, ay_meas{0.0}, az_meas{0.0},
             g{9.81}, mass, AoA, AoAdelE, AoAdelR, sideslip, height, soundBarrier, mach, dragForce, sideForce, liftForce, Vmag{0}, tau{1}, thrust{0}, length, radius, b, c, CGCPavg, rho;
     //Various calculators
     void computeAirData(){
         Vmag = sqrt(V[u]*V[u] + V[v]*V[v] + V[w]*V[w]);
-        if(soundBarrier > 0){mach = Vmag/soundBarrier;}
-            else{mach = 0;}
-        if(V[u] == 0){AoA = AoAdelE = 0;}
+        if(soundBarrier > 0.0){mach = Vmag/soundBarrier;}
+            else{mach = 0.0;}
+        if(V[u] == 0.0){AoA = AoAdelE = 0.0;}
             else{
                 AoA = atan2(V[w], V[u]);
             }
-        if(Vmag == 0){sideslip = asin(0);}
+        if(Vmag == 0.0){sideslip = asin(0);}
             else{
                 double const Vxz = sqrt(V[u]*V[u] + V[w]*V[w]);
                 sideslip = atan2(V[v], Vxz);
@@ -178,6 +191,8 @@ class Dynamics{
         double y0[15], k[4][15];
         for(int i = 0; i < 15; ++i){y0[i] = instance[i];}
         for(int i = 0; i < 4; ++i){            
+            unpackInstance();
+            computeAirData();
             cosineMatrix(eulerAngles[p], eulerAngles[q], eulerAngles[r], AoA, sideslip);
             externalForces();
             derivatives();
@@ -186,12 +201,27 @@ class Dynamics{
                 if(i < 2){instance[j] = y0[j] + 0.5*h*k[i][j];}
                     else if(i == 2){instance[j] = y0[j] + h*k[i][j];}                
             }
-            if(i < 3){unpackInstance(); computeAirData();}
         }
-        for (int i = 0; i < 15; i++){instance[i] = y0[i] + h*(k[0][i] + 2*k[1][i] + 2*k[2][i] + k[3][i])/6;}
+        for (int i = 0; i < 15; i++){instance[i] = y0[i] + h*(k[0][i] + 2.0*k[1][i] + 2.0*k[2][i] + k[3][i])/6.0;}
+    }
+    void initializeDCM(){
+        computeAirData();
+        // in Dynamics constructor after member initialization
+        for (int i=0;i<3;i++){
+            for (int j=0;j<3;j++){
+                Cm_wb[i][j]  = 0.0;
+                Cm_wbT[i][j] = 0.0;
+                Cm_bn[i][j]  = 0.0;
+                Cm_bnT[i][j] = 0.0;
+            }
+            Cm_wb[i][i]  = 1.0;
+            Cm_wbT[i][i] = 1.0;
+            Cm_bn[i][i]  = 1.0;
+            Cm_bnT[i][i] = 1.0;
+        }
     }
     void cosineMatrix(double phi /*roll*/, double theta /*pitch*/, double psi /*yaw*/, double alpha /*AoA*/, double beta /*sideslip*/){
-        //Body-Normal matrix 
+        //NED -> Body DCM 
         Cm_bn[0][0] = cos(theta)*cos(psi);
         Cm_bn[0][1] = cos(theta)*sin(psi);
         Cm_bn[0][2] = -sin(theta);
@@ -201,7 +231,7 @@ class Dynamics{
         Cm_bn[2][0] = sin(phi)*sin(psi) + cos(phi)*sin(theta)*cos(psi);
         Cm_bn[2][1] = -sin(phi)*cos(psi) + cos(phi)*sin(theta)*sin(psi);
         Cm_bn[2][2] = cos(phi)*cos(theta);
-        //Normal-Body matrix
+        //NED -> Body DCM Transpose aka Body -> NED DCM
         Cm_bnT[0][0] = Cm_bn[0][0];
         Cm_bnT[0][1] = Cm_bn[1][0];
         Cm_bnT[0][2] = Cm_bn[2][0];
@@ -211,7 +241,7 @@ class Dynamics{
         Cm_bnT[2][0] = Cm_bn[0][2];
         Cm_bnT[2][1] = Cm_bn[1][2];
         Cm_bnT[2][2] = Cm_bn[2][2];
-        //Wind-Body matrix
+        //Body -> Wind DCM
         Cm_wb[0][0] = cos(alpha)*cos(beta);
         Cm_wb[0][1] = sin(beta);
         Cm_wb[0][2] = sin(alpha)*cos(beta);
@@ -221,7 +251,7 @@ class Dynamics{
         Cm_wb[2][0] = -sin(alpha);
         Cm_wb[2][1] = 0;
         Cm_wb[2][2] = cos(alpha);
-        //Wind-Body matrix Transpose
+        //Body->Wind DCM Transpose
         Cm_wbT[0][0] = Cm_wb[0][0];
         Cm_wbT[0][1] = Cm_wb[1][0];
         Cm_wbT[0][2] = Cm_wb[2][0];
@@ -235,10 +265,10 @@ class Dynamics{
     double qBar(){
         if(atmosphereON == true){
             double tempurature, pressure;
-            if(height < 11000){  //calculations from NASA: https://www.grc.nasa.gov/www/k-12/airplane/atmosmet.html
+            if(height < 11000.0){  //calculations from NASA: https://www.grc.nasa.gov/www/k-12/airplane/atmosmet.html
                 tempurature = 15.04 - 0.00649*(height);
                 pressure = 101.29*pow(((tempurature + 273.1) / 288.08), 5.256);
-            }else if(height >= 11000 && height < 25000){
+            }else if(height >= 11000.0 && height < 25000.0){
                 tempurature = -56.46;
                 pressure = 22.65*exp(1.73 - 0.000157*height);
             }else{
@@ -248,7 +278,7 @@ class Dynamics{
             soundBarrier = sqrt(1.4*287.05*(tempurature + 273.1));
             rho = pressure/(0.2869*(tempurature + 273.1));
             return 0.5*rho*pow(Vmag, 2);
-        }else{soundBarrier = 0; return 0;}
+        }else{soundBarrier = 0.0; return 0;}
     }
     double MomentCoefficient(Variables axis, double span, double chord){
         //Moment Coefficients on body        
@@ -317,7 +347,9 @@ class Dynamics{
         const double weight  = 0.5 * (1.0 + tanh((std::abs(AoA) - alpha_b) / dAlpha));
         const double C_Nmag = (1 - weight)*C_Nlin + weight*C_Nhigh;
         //Drag Coefficient
-        C_Drag = C_DragBase + C_DragBase*exp(-pow((mach - 1)/0.25, 2)) + 0.5*C_DragBase*(1 - exp(-(mach - 1)/0.9)) + 0.02*(mach - 1)*H(mach - 1) + K_D*sin(AoA)*sin(AoA);
+        C_Drag = C_DragBase + C_DragBase*exp(-pow((mach - 1.0)/0.25, 2))
+                + 0.5*C_DragBase*(1.0 - exp(-(mach - 1)/0.9)) + 0.02*(mach - 1.0)*H(mach - 1.0)
+                + K_D*sin(AoA)*sin(AoA);
         //Lift/Sideforce Coefficient
         C_LiftPitch = C_Nmag*cos(sideslip);
         C_LiftYaw = -C_Nmag*sin(sideslip);

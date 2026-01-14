@@ -19,12 +19,12 @@ class V755DSU{
         newState();
     }
     void motor(double TOF, double dt){  //Thrust level then fuel mass change
-        if(TOF <= 3){thrust = 460000 - 130000*(TOF/3); motorData[0] -= 174*dt;}  //Boost main phase
-            else if(TOF > 3 && TOF <= 3.5){thrust = 1084821.429*TOF*TOF + -7710625*TOF + 13700714.29; motorData[0] -= 174*dt;} //Boost transition
-            else if(TOF > 3.5 && TOF <= 4){thrust = 35000*(TOF-3.5); motorData[2] -= 723.4/42*dt;}    //Sustainer throttle up
-            else if(TOF > 4 && TOF <= 45.5){thrust = 35000; motorData[2] -= 723.4/42*dt;}    //Sustainer Max
-            else if(TOF > 45.5 && TOF <= 46){thrust = -17500*(TOF-44) + 35000; motorData[2] -= 723.4/42*dt;}   //Sustainer transition
-            else{thrust = 0;}   //Glide Phase 
+        if(TOF <= 3.0){thrust = 460000.0 - 130000.0*(TOF/3); motorData[0] -= 174*dt;}  //Boost main phase
+            else if(TOF > 3.0 && TOF <= 3.5){thrust = 1084821.429*TOF*TOF + -7710625*TOF + 13700714.29; motorData[0] -= 174*dt;} //Boost transition
+            else if(TOF > 3.5 && TOF <= 4.0){thrust = 35000.0*(TOF-3.5); motorData[2] -= 723.4/42*dt;}    //Sustainer throttle up
+            else if(TOF > 4.0 && TOF <= 45.0){thrust = 35000.0; motorData[2] -= 723.4/42*dt;}    //Sustainer Max
+            else if(TOF > 45.0 && TOF <= 45.5){thrust = -17500.0*(TOF-44.0) + 35000.0; motorData[2] -= 723.4/42*dt;}   //Sustainer transition
+            else{thrust = 0.0;}   //Glide Phase 
     }
     void updateDimensions(){
         length = 8.215; 
@@ -67,12 +67,11 @@ class V755DSU{
     double transferData(int i){
         return modelData[i];
     }
-    const double deg_rad{PI/180}, slug_kg{14.5939}, inch_m{0.0254}, sqft_sqm{0.092903}, ft_m{0.304878}, slugsqft_kgsqm{1.3558179619},
+    const double deg_rad{PI/180.0}, slug_kg{14.5939}, inch_m{0.0254}, sqft_sqm{0.092903}, ft_m{0.304878}, slugsqft_kgsqm{1.3558179619},
     wingData[6] = {1.691/*wing span*/, 1.0685 /*wing chord*/, 0.0442848 /*Aileron Wing Area*/, 1.2554875 /*Main Wing Area*/, 0.161876 /*Rudder Wing Area*/, 2.027676/*Booster Wing Area*/},
-    emptyMass = 667;
-    double mass{0}, length{10.778}, radius{0.327}, tau{1}, thrust{0}, C_LiftBase{0.01}, C_DragBase{0.27}, CG_CP_avg{0.8065},
+    emptyMass = 667.0;
+    double mass{0}, length{10.778}, radius{0.327}, tau{0.1}, thrust{0}, C_LiftBase{0.01}, C_DragBase{0.27}, CG_CP_avg{0.8065},
         modelData[17],
-        motorData[3] = {609/*Booster Fuel*/, 398.5/*Booster empty mass*/, 723.4/*Sustainer Fuel*/},
-        inertiaData[4] = {0 /*Ixx*/, 0 /*Iyy*/, 0 /*Izz*/, 0 /*Ixz*/},
-        actuatorMaxAngles[3] = {12*deg_rad /*aileron*/, 28*deg_rad /*elevator*/, 28*deg_rad /*rudder*/};
+        motorData[3] = {609.0/*Booster Fuel*/, 398.5/*Booster empty mass*/, 723.4/*Sustainer Fuel*/},
+        inertiaData[4] = {0 /*Ixx*/, 0 /*Iyy*/, 0 /*Izz*/, 0 /*Ixz*/};
 };
