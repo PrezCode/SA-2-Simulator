@@ -1,4 +1,5 @@
-//Version 1, 4 November 2025
+//Version 1.01, 17 January 2026
+#pragma once
 #include <iostream>
 #include <string>
 #include <cmath>
@@ -6,11 +7,7 @@ using namespace std;
 
 class CoordinateDeterminationSystem{
     public:
-    CoordinateDeterminationSystem(double zero){
-        rangeInitial = zero; rangeFinal = zero; rangeRate = zero;
-        betaInitial = zero; betaFinal = zero; betaRate = zero;
-        epsilonInitial = zero; epsilonFinal = zero; epsilonRate = zero;
-    }
+    CoordinateDeterminationSystem(){}
     //Trackfile calculations
     void initial(double X, double Y, double Z){
         rangeInitial = sqrt(X*X + Y*Y + Z*Z); //Create first slant range reference value
@@ -42,19 +39,19 @@ class CoordinateDeterminationSystem{
                 else{Rmax = 0;}
         }else{Rmax = 0;}*/
         if(Vxy <= 640){    //Rmax for Three-Point Method
-            if(heightFinal < 1000){Rmax = 15000;}
-                else if(heightFinal >= 1000 && heightFinal <= 17500){Rmax = 21473.96*pow(1.0000393, heightFinal);}
-                else if(heightFinal > 17500 && heightFinal <= 25000){Rmax = 43000;}
-                else{Rmax = 0;}
+            if(heightFinal < 1000.0){Rmax = 15000.0;}
+                else if(heightFinal >= 1000.0 && heightFinal <= 17500.0){Rmax = 21473.96*pow(1.0000393, heightFinal);}
+                else if(heightFinal > 17500.0 && heightFinal <= 25000.0){Rmax = 43000.0;}
+                else{Rmax = 0.0;}
         }else{Rmax = 0;}
         alpha = atan2(polarFinalY - polarInitialY, polarFinalX - polarInitialX);
-        theta = PI/2 - abs(alpha - (betaFinal + PI));
+        theta = M_PI/2.0 - abs(alpha - (betaFinal + M_PI));
         range_cross = rangeFinal*cos(epsilonFinal)*cos(theta);
         TimeToIntercept = (sqrt(pow(rangeFinal*cos(epsilonFinal), 2) - pow(range_cross, 2)) - sqrt(pow(Rmax, 2) - pow(range_cross, 2)))/Vxy;
     }
     void Fuze(double height){
-        if(height >= 5000){fuzeSensitivity = 300;}
-            else{fuzeSensitivity = 100;}
+        if(height >= 5000.0){fuzeSensitivity = 300.0;}
+            else{fuzeSensitivity = 100.0;}
     }
     double TTI(){return TimeToIntercept;}
     double getRange(){return rangeFinal;}
@@ -69,6 +66,6 @@ class CoordinateDeterminationSystem{
     double getFuze(){return fuzeSensitivity;}
     double getHeight(){return heightFinal;}
     private:
-    double epsilonInitial, epsilonFinal, epsilonRate, betaInitial, betaFinal, betaRate, rangeInitial, rangeFinal, rangeRate, fuzeSensitivity;
-    double polarInitialX, polarFinalX, polarInitialY, polarFinalY, alpha, theta, range_cross, TimeToIntercept, Vxy, Rmax, heightInitial, heightFinal;
+    double epsilonInitial{0.0}, epsilonFinal{0.0}, epsilonRate{0.0}, betaInitial{0.0}, betaFinal{0.0}, betaRate{0.0}, rangeInitial{0.0}, rangeFinal{0.0}, rangeRate{0.0}, fuzeSensitivity{0.0};
+    double polarInitialX{0.0}, polarFinalX{0.0}, polarInitialY{0.0}, polarFinalY{0.0}, alpha{0.0}, theta{0.0}, range_cross{0.0}, TimeToIntercept{0.0}, Vxy{0.0}, Rmax{0.0}, heightInitial{0.0}, heightFinal{0.0};
 };
